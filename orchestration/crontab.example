@@ -1,0 +1,2 @@
+# Cron alternative to Airflow (every 30 minutes)
+*/30 * * * * cd /opt/dfd_pipeline && /opt/dfd_pipeline/.venv/bin/python -m src.pipeline.run_pipeline >> /var/log/dfd_pipeline.log 2>&1
