@@ -1,0 +1,17 @@
+# Environment variables
+.venv
+.env
+.env.example
+
+# Data
+data/
+
+# SQL
+sql/
+
+# Pycache
+__pycache__/
+
+# Testing
+ping.py
+pytest.ini
