@@ -15,13 +15,13 @@ def run_stage(stage: PipelineStage) -> None:
     from src.datamart import build as p3
 
     jobs = {
-        PipelineStage.extract: p1.run,
-        PipelineStage.transform: p2.run,
-        PipelineStage.datamart: p3.run,
+        PipelineStage.extract: p1.run,      # run phase 1: extract everything
+        PipelineStage.transform: p2.run,    # run phase 2: check everything
+        PipelineStage.datamart: p3.run,     # run phase 3: reload everything in ONE transaction
     }
     if stage is PipelineStage.all:
         for job in (p1.run, p2.run, p3.run):
-            job()
+            job()   # run all three phases in order; p1.run() -> p2.run() -> p3.run()
         return
     jobs[stage]()
 

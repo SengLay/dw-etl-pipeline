@@ -73,11 +73,7 @@ def read_table(
     if selected_order not in columns:
         raise HTTPException(status_code=400, detail=f"Unknown order_by column: {selected_order}")
     direction = "DESC" if descending else "ASC"
-    pagination = (
-        "LIMIT :limit OFFSET :offset"
-        if db.engine.dialect.name == "sqlite"
-        else "OFFSET :offset ROWS FETCH NEXT :limit ROWS ONLY"
-    )
+    pagination = "OFFSET :offset ROWS FETCH NEXT :limit ROWS ONLY"
     frame = db.select(
         f"SELECT * FROM {layer}.{table} ORDER BY {selected_order} {direction} {pagination}",
         {"limit": limit, "offset": offset},

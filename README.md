@@ -37,7 +37,7 @@ pip install -r requirements.txt
 cp .env.example .env
 ```
 
-For SQL Server, install **ODBC Driver 18 for SQL Server**, create an empty database, and set `DB_BACKEND=mssql` plus the connection settings in `.env`. Schemas and tables are created automatically.
+The project uses SQL Server only. Install **ODBC Driver 18 for SQL Server**, create an empty database, and set the SQL Server connection settings in `.env`. Schemas and tables are created automatically.
 
 Use one authentication mode:
 
@@ -127,7 +127,7 @@ Size is set by `SAMPLE_ORDERS` in `.env` (default 1000) or `--orders N`. Replace
 | 1 P1 to D1 | `python -m src.pipeline.run_pipeline --stage extract` | `python -m src.tools.inspect_layers staging` |
 | 2 P2 to D2 | `python -m src.pipeline.run_pipeline --stage transform` | `python -m src.tools.inspect_layers dwh` |
 | 3 P3 to D3 | `python -m src.pipeline.run_pipeline --stage datamart` | `python -m src.tools.inspect_layers dmart` |
-| All steps at once | `python -m src.tools.demo --reset` | prints row counts per layer |
+| All steps at once | `python -m src.tools.demo` | prints row counts per layer |
 | Automated | `pytest` | steps 0-3, re-run, bad-data test |
 
 Optional: `python -m src.tools.download_instacart` (needs `pip install kagglehub`) writes a real 1000-order sample into the same CSV folder.

@@ -25,4 +25,4 @@ def health() -> dict[str, Any]:
         database_is_available()
     except Exception as exc:
         raise HTTPException(status_code=503, detail=f"Database unavailable: {exc}") from exc
-    return {"status": "ok", "database": f"{settings.db_name} - {settings.db_backend} is ok"}
+    return {"status": "ok", "database": f"{settings.db_name} - SQL Server is ok"}

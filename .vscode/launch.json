@@ -10,7 +10,6 @@
             "cwd": "${workspaceFolder}",
             "envFile": "${workspaceFolder}/.env",
             "env": {
-                "DB_BACKEND": "mssql",
                 "DB_SERVER": "RAVIT",
                 "DB_NAME": "dw_proj",
                 "DB_TRUSTED": "yes",
