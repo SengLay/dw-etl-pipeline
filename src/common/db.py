@@ -92,6 +92,8 @@ class Database:
         return inspect(self.engine).has_table(self._identifier(table), schema=self._identifier(schema))
 
     def list_tables(self, schema: str) -> list[str]:
+        """This is the actual database operation. It returns all table names in a schema."""
+        # get_table_names: Return all table names within a particular schema.
         return inspect(self.engine).get_table_names(schema=self._identifier(schema))
 
     def select(self, query: str, params: dict | None = None,
@@ -164,7 +166,7 @@ def get_database() -> Database:
 def init_db() -> None:
     """Idempotent: create schemas and the DWH / D-Mart tables."""
     from src.warehouse.schema import metadata
-
+    print(f"Initializing database {settings.db_name} ({settings.db_backend})...")
     get_database().create_tables(metadata)
 
 

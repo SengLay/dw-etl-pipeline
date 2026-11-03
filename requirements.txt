@@ -5,4 +5,6 @@ pyodbc>=5.0          # SQL Server driver (also install "ODBC Driver 18 for SQL S
 python-dotenv>=1.0
 schedule>=1.2        # --every N loop
 pytest>=8.0
+fastapi>=0.110
+uvicorn[standard]>=0.29
 # optional: kagglehub (real Kaggle sample), apache-airflow, requests (API extractor), kafka-python (stream), pyarrow (parquet)

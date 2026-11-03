@@ -1,0 +1,25 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug FastAPI",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/main.py",
+            "python": "${workspaceFolder}\\.venv\\Scripts\\python.exe",
+            "cwd": "${workspaceFolder}",
+            "envFile": "${workspaceFolder}/.env",
+            "env": {
+                "DB_BACKEND": "mssql",
+                "DB_SERVER": "RAVIT",
+                "DB_NAME": "dw_proj",
+                "DB_TRUSTED": "yes",
+                "DB_DRIVER": "ODBC Driver 17 for SQL Server"
+            },
+            "console": "integratedTerminal",
+            "subProcess": false,
+            "justMyCode": true,
+            "jinja": true
+        }
+    ]
+}
