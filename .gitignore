@@ -16,3 +16,6 @@ __pycache__/
 ping.py
 pytest.ini
 .pytest_cache/
+
+# Log
+logs/
