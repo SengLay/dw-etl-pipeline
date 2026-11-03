@@ -1,10 +1,8 @@
-# Must run BEFORE config.settings is imported: point everything at a throwaway SQLite setup.
+# Must run BEFORE config.settings is imported: point source files at a throwaway test location.
 import os
 import tempfile
 
 _tmp = tempfile.mkdtemp(prefix="dfd_test_")
 os.environ.update({
-    "DB_BACKEND": "sqlite",
-    "SQLITE_DIR": f"{_tmp}/sqlite",
     "LAKE_PATH": f"{_tmp}/lake",
 })

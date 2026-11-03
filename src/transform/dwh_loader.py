@@ -1,4 +1,4 @@
-"""Helpers to write into D2 (DWH). Plain SQL that runs on SQL Server and SQLite."""
+"""Helpers to write into D2 (DWH) using SQL Server."""
 import pandas as pd
 
 from config.settings import DWH

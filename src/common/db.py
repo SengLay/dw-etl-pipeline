@@ -1,9 +1,4 @@
-"""One engine; D1/D2/D3 are three schemas: staging, dwh, dmart.
-
-SQL Server : one database, three schemas.
-SQLite     : three attached files (staging.db, dwh.db, dmart.db) - same `schema.table`
-             syntax, so every query in the project runs unchanged on both.
-"""
+"""One SQL Server engine; D1/D2/D3 are three schemas: staging, dwh, dmart."""
 from functools import lru_cache
 from contextlib import contextmanager
 from pathlib import Path
@@ -11,7 +6,7 @@ import re
 from urllib.parse import quote_plus
 
 import pandas as pd
-from sqlalchemy import UnicodeText, create_engine, event, text
+from sqlalchemy import UnicodeText, create_engine, text
 from sqlalchemy.engine import Connection, Engine
 from sqlalchemy.engine import Result
 from sqlalchemy import inspect
@@ -21,22 +16,8 @@ from config.settings import SCHEMAS, settings
 
 @lru_cache(maxsize=None)
 def get_engine() -> Engine:
-    if settings.db_backend == "sqlite":
-        folder = Path(settings.sqlite_dir).resolve()
-        folder.mkdir(parents=True, exist_ok=True)
-        engine = create_engine("sqlite://")
-
-        @event.listens_for(engine, "connect")
-        def _attach(dbapi_conn, _):
-            cur = dbapi_conn.cursor()
-            for schema in SCHEMAS:
-                cur.execute(f"ATTACH DATABASE '{folder / (schema + '.db')}' AS {schema}")
-            cur.close()
-
-        return engine
-
-    auth = ("Trusted_Connection=yes;" if settings.db_trusted
-            else f"UID={settings.db_user};PWD={settings.db_password};")
+    auth = ("Trusted_Connection=yes;" if settings.db_trusted else
+            f"UID={settings.db_user};PWD={settings.db_password};")
     odbc = (f"DRIVER={{{settings.db_driver}}};SERVER={settings.db_server};"
             f"DATABASE={settings.db_name};{auth}TrustServerCertificate=yes")
     return create_engine(f"mssql+pyodbc:///?odbc_connect={quote_plus(odbc)}",
@@ -92,6 +73,8 @@ class Database:
         return inspect(self.engine).has_table(self._identifier(table), schema=self._identifier(schema))
 
     def list_tables(self, schema: str) -> list[str]:
+        """This is the actual database operation. It returns all table names in a schema."""
+        # get_table_names: Return all table names within a particular schema.
         return inspect(self.engine).get_table_names(schema=self._identifier(schema))
 
     def select(self, query: str, params: dict | None = None,
@@ -164,7 +147,7 @@ def get_database() -> Database:
 def init_db() -> None:
     """Idempotent: create schemas and the DWH / D-Mart tables."""
     from src.warehouse.schema import metadata
-
+    print(f"Initializing SQL Server database {settings.db_name}...")
     get_database().create_tables(metadata)
 
 

@@ -37,7 +37,68 @@ pip install -r requirements.txt
 cp .env.example .env
 ```
 
-The default backend is **SQLite** (zero setup). For SQL Server, install **ODBC Driver 18 for SQL Server**, create an empty database, and set `DB_BACKEND=mssql` plus the connection settings in `.env`. Schemas and tables are created automatically.
+The project uses SQL Server only. Install **ODBC Driver 18 for SQL Server**, create an empty database, and set the SQL Server connection settings in `.env`. Schemas and tables are created automatically.
+
+Use one authentication mode:
+
+```dotenv
+# Windows authentication. The Windows account running VS Code must be a
+# SQL Server login with access to DB_NAME.
+DB_TRUSTED=yes
+
+# SQL Server authentication.
+DB_TRUSTED=no
+DB_USER=your_sql_login
+DB_PASSWORD=your_sql_password
+```
+
+If Windows authentication reports `Login failed for user 'DOMAIN\\user'`,
+grant that Windows login access in SQL Server, or switch to SQL Server
+authentication. The account also needs permission to create schemas and
+tables in the configured database.
+
+## API
+
+The maintainable FastAPI application is split into routes, services, schemas, and middleware:
+
+```
+main.py                 # local Uvicorn entrypoint
+api/app.py              # application factory and lifecycle
+api/routes/             # system, data, and pipeline endpoints
+api/services/           # database and pipeline business logic
+api/schemas.py          # request/response models
+api/middleware.py       # request IDs, timing, and access logging
+```
+
+Start it with:
+
+```bash
+python main.py
+```
+
+Interactive documentation is available at `http://127.0.0.1:8000/docs`.
+For VS Code debugging, open **Run and Debug**, select **Debug FastAPI**, and
+press `F5`. Breakpoints will work in `api/routes/`, `api/services/`, and the
+existing `src/` pipeline modules.
+The API provides health checks, layer/table metadata, paginated read-only table
+data, source quality checks, and pipeline stage execution:
+
+| Method | Endpoint | Purpose |
+|---|---|---|
+| GET | `/health` | Database health |
+| GET | `/api/v1/layers` | Row counts for every layer |
+| GET | `/api/v1/{layer}/tables` | Tables in `staging`, `dwh`, or `dmart` |
+| GET | `/api/v1/{layer}/{table}` | Paginated table rows |
+| GET | `/api/v1/quality` | Validate landed source data |
+| POST | `/api/v1/pipeline/run` | Run `extract`, `transform`, `datamart`, or `all` |
+
+For example:
+
+```bash
+curl "http://127.0.0.1:8000/api/v1/dmart/mart_product_summary?limit=20"
+curl -X POST http://127.0.0.1:8000/api/v1/pipeline/run ^
+  -H "Content-Type: application/json" -d "{\"stage\":\"all\"}"
+```
 
 ## Mock data -> CSV files -> pipeline
 
@@ -66,7 +127,7 @@ Size is set by `SAMPLE_ORDERS` in `.env` (default 1000) or `--orders N`. Replace
 | 1 P1 to D1 | `python -m src.pipeline.run_pipeline --stage extract` | `python -m src.tools.inspect_layers staging` |
 | 2 P2 to D2 | `python -m src.pipeline.run_pipeline --stage transform` | `python -m src.tools.inspect_layers dwh` |
 | 3 P3 to D3 | `python -m src.pipeline.run_pipeline --stage datamart` | `python -m src.tools.inspect_layers dmart` |
-| All steps at once | `python -m src.tools.demo --reset` | prints row counts per layer |
+| All steps at once | `python -m src.tools.demo` | prints row counts per layer |
 | Automated | `pytest` | steps 0-3, re-run, bad-data test |
 
 Optional: `python -m src.tools.download_instacart` (needs `pip install kagglehub`) writes a real 1000-order sample into the same CSV folder.

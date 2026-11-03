@@ -1,15 +1,12 @@
 """One command: mock data -> P1 -> P2 -> P3, then print row counts per layer.
 
-    python -m src.tools.demo              # 1000 mock orders, SQLite (no setup needed)
+    python -m src.tools.demo              # 1000 mock orders
     python -m src.tools.demo --orders 200
-    python -m src.tools.demo --reset      # wipe previous SQLite files first
 """
 import argparse
-import shutil
-from pathlib import Path
 
-from config.settings import SCHEMAS, settings
-from src.common.db import get_database, get_engine
+from config.settings import SCHEMAS
+from src.common.db import get_database
 from src.common.logger import get_logger
 from src.datamart import build as p3
 from src.extract import run as p1
@@ -32,14 +29,8 @@ def print_counts() -> None:
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--orders", type=int, default=None)
-    ap.add_argument("--reset", action="store_true")
     args = ap.parse_args()
 
-    if args.reset and settings.db_backend == "sqlite":
-        shutil.rmtree(Path(settings.sqlite_dir), ignore_errors=True)
-        get_engine.cache_clear()
-
-    log.info("Backend: %s", settings.db_backend)
     mock_data.generate(n_orders=args.orders)
     p1.run()
     p2.run()
