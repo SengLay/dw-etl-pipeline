@@ -1,27 +1,17 @@
-from pathlib import Path
 from typing import Iterator
 
 import pandas as pd
 
-from config.settings import settings
+from src.common.db import get_raw_database
 from src.extract.base import BaseExtractor
 
 
 class DataLakeExtractor(BaseExtractor):
-    """Reads one csv/parquet file from the lake and yields it in chunks."""
+    """Reads one landed source table from the lake_raw database."""
 
-    def __init__(self, file: str, target_table: str, folder: str = "instacart",
-                 chunksize: int = 100_000):
-        self.file, self.target_table = file, target_table
-        self.folder, self.chunksize = folder, chunksize
+    def __init__(self, raw_table: str, target_table: str, chunksize: int = 100_000):
+        self.raw_table, self.target_table = raw_table, target_table
+        self.chunksize = chunksize
 
     def extract(self) -> Iterator[pd.DataFrame]:
-        path = Path(settings.lake_path) / self.folder / self.file
-        if not path.exists():
-            raise FileNotFoundError(
-                f"{path} not found. Land the data first: "
-                "python -m src.tools.mock_data  (or the optional python -m src.tools.download_instacart)")
-        if path.suffix == ".parquet":
-            yield pd.read_parquet(path)
-        else:
-            yield from pd.read_csv(path, chunksize=self.chunksize)
+        yield get_raw_database().select(f"SELECT * FROM raw.{self.raw_table}")

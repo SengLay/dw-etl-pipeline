@@ -13,6 +13,7 @@ class Layer(str, Enum):
 
 
 class PipelineStage(str, Enum):
+    raw = "raw"
     extract = "extract"
     transform = "transform"
     datamart = "datamart"
