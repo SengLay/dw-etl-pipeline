@@ -10,10 +10,11 @@ import time
 from src.common.logger import get_logger
 from src.datamart import build as p3
 from src.extract import run as p1
+from src.raw import run as p0
 from src.transform import run as p2
 
 log = get_logger("pipeline")
-STAGES = {"extract": p1.run, "transform": p2.run, "datamart": p3.run}
+STAGES = {"raw": p0.run, "extract": p1.run, "transform": p2.run, "datamart": p3.run}
 
 
 def run_all() -> None:

@@ -15,11 +15,30 @@ from config.settings import SCHEMAS, settings
 
 
 @lru_cache(maxsize=None)
+def _create_engine(database: str) -> Engine:
+    auth = ("Trusted_Connection=yes;" if settings.db_trusted else
+            f"UID={settings.db_user};PWD={settings.db_password};")
+    odbc = (f"DRIVER={{{settings.db_driver}}};SERVER={settings.db_server};"
+            f"DATABASE={settings.db_name};{auth}TrustServerCertificate=yes")
+    return create_engine(f"mssql+pyodbc:///?odbc_connect={quote_plus(odbc)}",
+                         fast_executemany=True)
+
+
+@lru_cache(maxsize=None)
 def get_engine() -> Engine:
     auth = ("Trusted_Connection=yes;" if settings.db_trusted else
             f"UID={settings.db_user};PWD={settings.db_password};")
     odbc = (f"DRIVER={{{settings.db_driver}}};SERVER={settings.db_server};"
             f"DATABASE={settings.db_name};{auth}TrustServerCertificate=yes")
+    return create_engine(f"mssql+pyodbc:///?odbc_connect={quote_plus(odbc)}",
+                         fast_executemany=True)
+
+
+def get_raw_engine() -> Engine:
+    auth = ("Trusted_Connection=yes;" if settings.db_trusted else
+            f"UID={settings.db_user};PWD={settings.db_password};")
+    odbc = (f"DRIVER={{{settings.db_driver}}};SERVER={settings.db_server};"
+            f"DATABASE={settings.raw_db_name};{auth}TrustServerCertificate=yes")
     return create_engine(f"mssql+pyodbc:///?odbc_connect={quote_plus(odbc)}",
                          fast_executemany=True)
 
@@ -141,12 +160,53 @@ class Database:
 
 
 def get_database() -> Database:
-    return Database()
+    auth = ("Trusted_Connection=yes;" if settings.db_trusted else
+            f"UID={settings.db_user};PWD={settings.db_password};")
+    odbc = (f"DRIVER={{{settings.db_driver}}};SERVER={settings.db_server};"
+            f"DATABASE={settings.db_name};{auth}TrustServerCertificate=yes")
+    engine = create_engine(f"mssql+pyodbc:///?odbc_connect={quote_plus(odbc)}",
+                           fast_executemany=True)
+    return Database(engine)
+
+
+def get_raw_database() -> Database:
+    auth = ("Trusted_Connection=yes;" if settings.db_trusted else
+            f"UID={settings.db_user};PWD={settings.db_password};")
+    odbc = (f"DRIVER={{{settings.db_driver}}};SERVER={settings.db_server};"
+            f"DATABASE={settings.raw_db_name};{auth}TrustServerCertificate=yes")
+    engine = create_engine(f"mssql+pyodbc:///?odbc_connect={quote_plus(odbc)}",
+                           fast_executemany=True)
+    return Database(engine)
+
+
+def ensure_database(database: str) -> None:
+    auth = ("Trusted_Connection=yes;" if settings.db_trusted else
+            f"UID={settings.db_user};PWD={settings.db_password};")
+    odbc = (f"DRIVER={{{settings.db_driver}}};SERVER={settings.db_server};"
+            f"DATABASE=master;{auth}TrustServerCertificate=yes")
+    engine = create_engine(f"mssql+pyodbc:///?odbc_connect={quote_plus(odbc)}")
+    try:
+        with engine.begin() as conn:
+            exists = conn.execute(
+                text("SELECT 1 FROM sys.databases WHERE name = :database"),
+                {"database": database}).scalar()
+            if not exists:
+                safe_name = Database._identifier(database)
+                conn.execute(text(f"CREATE DATABASE [{safe_name}]"))
+    finally:
+        engine.dispose()
+
+
+def init_raw_db() -> None:
+    """Create the raw database schema used by landed source tables."""
+    ensure_database(settings.raw_db_name)
+    get_raw_database().create_schema("raw")
 
 
 def init_db() -> None:
     """Idempotent: create schemas and the DWH / D-Mart tables."""
     from src.warehouse.schema import metadata
+    ensure_database(settings.db_name)
     print(f"Initializing SQL Server database {settings.db_name}...")
     get_database().create_tables(metadata)
 

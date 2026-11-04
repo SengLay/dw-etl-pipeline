@@ -14,12 +14,24 @@ from src.staging.loader import reload_all
 log = get_logger("P1.extract")
 
 
+def _prepare_for_staging(df: pd.DataFrame) -> pd.DataFrame:
+    """Apply source-independent cleanup before the staging quality gate."""
+    out = df.copy()
+    out.columns = [str(column).strip().lower() for column in out.columns]
+    for column in out.select_dtypes(include=["object", "string"]).columns:
+        out[column] = out[column].astype("string").str.strip()
+    return out
+
+
 def run() -> None:
     init_db()
     chunks: dict[str, list[pd.DataFrame]] = {}
     for ex in get_extractors():
         chunks.setdefault(ex.target_table, []).extend(ex.extract())
-    frames = {t: pd.concat(c, ignore_index=True) for t, c in chunks.items()}
+    frames = {
+        table: _prepare_for_staging(pd.concat(parts, ignore_index=True))
+        for table, parts in chunks.items()
+    }
     for t, df in frames.items():
         log.info("Extracted %-20s %8d rows", t, len(df))
 

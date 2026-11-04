@@ -6,6 +6,7 @@ from sqlalchemy import text
 from src.common.db import get_engine
 from src.datamart import build as p3
 from src.extract import run as p1
+from src.raw import run as p0
 from src.tools import mock_data
 from src.transform import run as p2
 
@@ -29,6 +30,7 @@ def test_step0_landing_files():
 
 
 def test_step1_p1_extract_to_staging():
+    p0.run()
     p1.run()
     assert count("staging.stg_orders") == 1000
     assert count("staging.stg_products") == 300
@@ -55,7 +57,7 @@ def test_step3_p3_datamart():
 
 def test_rerun_is_idempotent():
     before = (count("dwh.fact_order_items"), count("dwh.dim_product"), count("dmart.mart_user_summary"))
-    p1.run(); p2.run(); p3.run()
+    p0.run(); p1.run(); p2.run(); p3.run()
     assert before == (count("dwh.fact_order_items"), count("dwh.dim_product"), count("dmart.mart_user_summary"))
 
 
@@ -68,6 +70,7 @@ def test_bad_data_keeps_old_staging(tmp_path):
     df = pd.read_csv(orders)
     df.loc[0, "order_hour_of_day"] = 99
     df.to_csv(orders, index=False)
+    p0.run()
     with pytest.raises(DataQualityError):
         p1.run()
     assert count("staging.stg_orders") == 1000
