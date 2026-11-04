@@ -1,35 +1,52 @@
 # ETL Pipeline Guide
 
-This project runs a three-stage ETL pipeline:
+This project runs a four-stage ETL pipeline:
 
 ```text
-P1 Extract → P2 Transform → P3 Datamart
+P0 Raw Landing → P1 Extract → P2 Transform → P3 Datamart
 ```
 
-All stages use the same SQL Server database, with a separate schema for each
-data layer:
+The pipeline uses two SQL Server databases:
 
 ```text
-Data Lake → staging → dwh → dmart → Dashboard
+Source files → lake_raw.raw → dwh_proj.staging → dwh_proj.dwh
+             → dwh_proj.dmart → Dashboard
 ```
 
 ## Pipeline stages
 
-### P1: Extract
+### P0: Raw landing
 
-**Code:** `src/extract/run.py`
+**Code:** `src/raw/run.py`
 
-P1 reads raw CSV files from the data lake, validates the extracted data, and
-reloads the `staging` schema.
+P0 copies source files into the separate `lake_raw` database. It does not
+validate or load staging.
 
 ```text
-data/lake/instacart/*.csv → staging.stg_*
+source files in `data/lake/instacart/` → lake_raw.raw.*
 ```
 
 Run it with:
 
 ```powershell
-python -m src.extract.run
+python -m src.pipeline.run_pipeline --stage raw
+```
+
+### P1: Extract and prepare
+
+**Code:** `src/extract/run.py`
+
+P1 reads existing tables from `lake_raw.raw`, applies baseline cleanup, validates
+the prepared data, and reloads the `staging` schema in `dwh_proj`.
+
+```text
+lake_raw.raw.* → dwh_proj.staging.stg_*
+```
+
+Run it with:
+
+```powershell
+python -m src.pipeline.run_pipeline --stage extract
 ```
 
 Inspect its output:
@@ -89,14 +106,16 @@ python -m src.tools.inspect_layers dmart
 Run the stages in this order:
 
 ```powershell
-python -m src.extract.run
-python -m src.transform.run
-python -m src.datamart.build
+python -m src.pipeline.run_pipeline --stage raw
+python -m src.pipeline.run_pipeline --stage extract
+python -m src.pipeline.run_pipeline --stage transform
+python -m src.pipeline.run_pipeline --stage datamart
 ```
 
 Each stage depends on the output of the previous stage:
 
 ```text
+P0 must finish before P1.
 P1 must finish before P2.
 P2 must finish before P3.
 ```
@@ -113,7 +132,15 @@ python main.py
 
 Then call each stage separately.
 
-### Run P1
+### Run P0: raw landing
+
+```powershell
+curl.exe -X POST http://127.0.0.1:8000/api/v1/pipeline/run `
+  -H "Content-Type: application/json" `
+  -d '{\"stage\":\"raw\"}'
+```
+
+### Run P1: staging preparation
 
 ```powershell
 curl.exe -X POST http://127.0.0.1:8000/api/v1/pipeline/run `
@@ -140,7 +167,7 @@ curl.exe -X POST http://127.0.0.1:8000/api/v1/pipeline/run `
 The endpoint is implemented in `api/routes/operations.py` and calls
 `run_stage()` in `api/services/pipeline.py`.
 
-To run all three stages through the API:
+To run all four stages through the API:
 
 ```powershell
 curl.exe -X POST http://127.0.0.1:8000/api/v1/pipeline/run `
@@ -154,6 +181,7 @@ The API maps each requested stage to its module-level `run()` function:
 
 ```python
 jobs = {
+    PipelineStage.raw: p0.run,
     PipelineStage.extract: p1.run,
     PipelineStage.transform: p2.run,
     PipelineStage.datamart: p3.run,
@@ -171,13 +199,14 @@ calls the `run()` function from `src/extract/run.py`.
 When the requested stage is `all`, the API executes the functions in order:
 
 ```python
-for job in (p1.run, p2.run, p3.run):
+for job in (p0.run, p1.run, p2.run, p3.run):
     job()
 ```
 
 This is equivalent to:
 
 ```python
+p0.run()
 p1.run()
 p2.run()
 p3.run()
@@ -214,8 +243,10 @@ python -m src.tools.inspect_layers dmart
 ## Important notes
 
 - The project uses SQL Server only.
-- The database has three schemas: `staging`, `dwh`, and `dmart`.
-- P1 reads from the data lake and writes to `staging`.
+- `lake_raw` contains the `raw` schema for source-preserving tables.
+- `dwh_proj` contains the `staging`, `dwh`, and `dmart` schemas.
+- P0 reads source files and writes to `lake_raw.raw`.
+- P1 reads from `lake_raw.raw` and writes cleaned data to `dwh_proj.staging`.
 - P2 reads from `staging` and writes to `dwh`.
 - P3 reads from `dwh` and writes to `dmart`.
 - Dashboard consumers should read from `dmart`.

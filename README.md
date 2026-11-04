@@ -1,13 +1,16 @@
 # DFD Pipeline: Instacart sample
 
-Data Lake → **P1** Extract → **D1** Staging → **P2** Transform & Load → **D2** DWH (star schema) → **P3** Build Data Mart → **D3** D-Mart → Power BI.
+Source files → **lake_raw** → **P1** Extract & Prepare → **D1** Staging → **P2** Transform & Load → **D2** DWH (star schema) → **P3** Build Data Mart → **D3** D-Mart → Power BI.
 Orchestrated by Airflow / ADF / cron.
 
 ```
 Kaggle ─(landing)─▶ data/lake/instacart/*.csv
-                          │ P1 (src/extract)   quality gate: src/quality
+                          │ P0 (src/raw)                 raw landing
                           ▼
-                   staging.stg_*          D1  raw copy, truncate & reload
+                   lake_raw.raw.*          raw source tables
+                          │ P1 (src/extract) prepare + quality gate
+                          ▼
+                   dwh_proj.staging.stg_*  cleaned source-shaped data
                           │ P2 (src/transform)
                           ▼
                    dwh.dim_* / dwh.fact_*  D2  star schema
@@ -16,8 +19,9 @@ Kaggle ─(landing)─▶ data/lake/instacart/*.csv
                    dmart.mart_*            D3  → Power BI
 ```
 
-P1, P2 and P3 never call each other; they only communicate through D1, D2 and D3.
-D1/D2/D3 are three **schemas** (`staging`, `dwh`, `dmart`) in one SQL Server database.
+P0, P1, P2 and P3 never call each other; they communicate through database layers.
+`lake_raw` is a separate SQL Server database; D1/D2/D3 are schemas
+(`staging`, `dwh`, `dmart`) in `dwh_proj`.
 
 ## Data model
 
@@ -37,13 +41,16 @@ pip install -r requirements.txt
 cp .env.example .env
 ```
 
-The project uses SQL Server only. Install **ODBC Driver 18 for SQL Server**, create an empty database, and set the SQL Server connection settings in `.env`. Schemas and tables are created automatically.
+The project uses SQL Server only. Install **ODBC Driver 17 or later for SQL
+Server** and set the SQL Server connection settings in `.env`. The application
+creates `lake_raw`, `dwh_proj`, and their schemas/tables automatically when the
+configured account has permission to create databases.
 
 Use one authentication mode:
 
 ```dotenv
 # Windows authentication. The Windows account running VS Code must be a
-# SQL Server login with access to DB_NAME.
+# SQL Server login with access to DB_NAME and permission to create databases.
 DB_TRUSTED=yes
 
 # SQL Server authentication.
@@ -90,7 +97,7 @@ data, source quality checks, and pipeline stage execution:
 | GET | `/api/v1/{layer}/tables` | Tables in `staging`, `dwh`, or `dmart` |
 | GET | `/api/v1/{layer}/{table}` | Paginated table rows |
 | GET | `/api/v1/quality` | Validate landed source data |
-| POST | `/api/v1/pipeline/run` | Run `extract`, `transform`, `datamart`, or `all` |
+| POST | `/api/v1/pipeline/run` | Run `raw`, `extract`, `transform`, `datamart`, or `all` |
 
 For example:
 
@@ -102,11 +109,16 @@ curl -X POST http://127.0.0.1:8000/api/v1/pipeline/run ^
 
 ## Mock data -> CSV files -> pipeline
 
-The mock generator is **separate from the pipeline**. It only writes CSV files into the data lake folder. P1 reads those files exactly as it would read real ones.
+The mock generator is **separate from the pipeline**. It writes CSV files into
+the landing folder. P0 lands those files into `lake_raw`; P1 then reads the
+raw tables, prepares the data, and loads cleaned staging tables.
 
 ```
-python -m src.tools.mock_data      ->  data/lake/instacart/*.csv   (the "Data Lake")
-python -m src.pipeline.run_pipeline    P1 -> P2 -> P3 read from those files
+python -m src.tools.mock_data
+python -m src.pipeline.run_pipeline --stage raw       # CSV -> lake_raw.raw
+python -m src.pipeline.run_pipeline --stage extract   # lake_raw -> staging
+python -m src.pipeline.run_pipeline --stage transform # staging -> dwh
+python -m src.pipeline.run_pipeline --stage datamart  # dwh -> dmart
 ```
 
 | File | Columns |
@@ -124,11 +136,12 @@ Size is set by `SAMPLE_ORDERS` in `.env` (default 1000) or `--orders N`. Replace
 | Step | Command | Check |
 |---|---|---|
 | 0 Mock data to CSV | `python -m src.tools.mock_data` | 5 CSVs in `data/lake/instacart/` |
-| 1 P1 to D1 | `python -m src.pipeline.run_pipeline --stage extract` | `python -m src.tools.inspect_layers staging` |
-| 2 P2 to D2 | `python -m src.pipeline.run_pipeline --stage transform` | `python -m src.tools.inspect_layers dwh` |
-| 3 P3 to D3 | `python -m src.pipeline.run_pipeline --stage datamart` | `python -m src.tools.inspect_layers dmart` |
-| All steps at once | `python -m src.tools.demo` | prints row counts per layer |
-| Automated | `pytest` | steps 0-3, re-run, bad-data test |
+| 1 P0 to raw | `python -m src.pipeline.run_pipeline --stage raw` | Query `lake_raw.raw.*` |
+| 2 P1 to D1 | `python -m src.pipeline.run_pipeline --stage extract` | `python -m src.tools.inspect_layers staging` |
+| 3 P2 to D2 | `python -m src.pipeline.run_pipeline --stage transform` | `python -m src.tools.inspect_layers dwh` |
+| 4 P3 to D3 | `python -m src.pipeline.run_pipeline --stage datamart` | `python -m src.tools.inspect_layers dmart` |
+| All steps at once | `python -m src.pipeline.run_pipeline` | runs P0 through P3 |
+| Automated | `pytest` | pipeline and quality tests |
 
 Optional: `python -m src.tools.download_instacart` (needs `pip install kagglehub`) writes a real 1000-order sample into the same CSV folder.
 
@@ -136,19 +149,21 @@ Optional: `python -m src.tools.download_instacart` (needs `pip install kagglehub
 
 Only these places know about the data shape; the rest is generic:
 
-1. CSV files in `data/lake/instacart/` (or point `registry.py` at new files)
-2. `src/extract/registry.py`: which file feeds which staging table
-3. `src/quality/checks.py`: rules and relationships
-4. `src/warehouse/schema.py`, `src/transform/dimensions.py`, `facts.py`: star schema and mappings
-5. `sql/datamart/*.sql` and the mart tables in `schema.py`
+1. CSV files in `data/lake/instacart/` (or update the raw landing source list)
+2. `src/raw/run.py`: which source file feeds which raw table
+3. `src/extract/registry.py`: which raw table feeds which staging table
+4. `src/quality/checks.py`: rules and relationships
+5. `src/warehouse/schema.py`, `src/transform/dimensions.py`, `facts.py`: star schema and mappings
+6. `sql/datamart/*.sql` and the mart tables in `schema.py`
 
 ## Orchestration
 
-- Airflow: `orchestration/airflow_dag.py` (`P1 >> P2 >> P3`, every 30 min, 2 retries)
+- Airflow: `orchestration/airflow_dag.py` (`P0 >> P1 >> P2 >> P3`, every 30 min, 2 retries)
 - cron: `orchestration/crontab.example`
 - Plain loop: `python -m src.pipeline.run_pipeline --every 15`
 
-Airflow and cron run P1 -> P3 against whatever is in the lake. Refreshing the lake itself (the landing step) is separate.
+Airflow and cron run P0 -> P3. P0 refreshes raw tables from the source files;
+P1 can be rerun independently against the existing raw database.
 
 ## Failure and re-run behavior
 
@@ -162,7 +177,8 @@ Airflow and cron run P1 -> P3 against whatever is in the lake. Refreshing the la
 config/settings.py            env config, schema names
 src/common/db.py              engine, init_db(), run_sql_file()
 src/warehouse/schema.py       D2 + D3 table definitions
-src/extract/                  P1 (registry.py lists the sources)
+src/raw/                      P0 raw landing into lake_raw
+src/extract/                  P1 (reads raw tables and prepares staging)
 src/staging/loader.py         D1 reload
 src/quality/checks.py         quality gate
 src/transform/                P2 (dimensions, facts, dwh_loader)
