@@ -1,7 +1,7 @@
 """P3: D2 DWH -> D3 D-Mart. Runs sql/datamart/*.sql in filename order."""
 from pathlib import Path
 
-from src.common.db import init_db, run_sql_file
+from src.database.connection import init_db, run_sql_file
 from src.common.logger import get_logger
 
 log = get_logger("P3.datamart")

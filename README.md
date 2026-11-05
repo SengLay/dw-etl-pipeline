@@ -175,7 +175,8 @@ P1 can be rerun independently against the existing raw database.
 
 ```
 config/settings.py            env config, schema names
-src/common/db.py              engine, init_db(), run_sql_file()
+src/database/                 connection and reusable database operations
+src/database/README.md        database package usage and operation guide
 src/warehouse/schema.py       D2 + D3 table definitions
 src/raw/                      P0 raw landing into lake_raw
 src/extract/                  P1 (reads raw tables and prepares staging)

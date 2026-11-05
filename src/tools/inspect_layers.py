@@ -6,7 +6,7 @@
 import sys
 
 from config.settings import SCHEMAS
-from src.common.db import get_database
+from src.database.connection import get_database
 
 
 def main(layers: list[str]) -> None:

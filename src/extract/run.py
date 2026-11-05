@@ -5,7 +5,7 @@ in ONE transaction. Staging is never left half-updated.
 """
 import pandas as pd
 
-from src.common.db import init_db
+from src.database.connection import init_db
 from src.common.logger import get_logger
 from src.extract.registry import get_extractors
 from src.quality.checks import run_staging_checks

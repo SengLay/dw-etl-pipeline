@@ -2,7 +2,7 @@
 import pandas as pd
 
 from config.settings import DWH
-from src.common.db import get_database
+from src.database.connection import get_database
 
 
 def upsert_dimension(df: pd.DataFrame, table: str, business_key: str) -> None:

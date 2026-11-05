@@ -2,7 +2,7 @@
 import pandas as pd
 
 from config.settings import STAGING
-from src.common.db import get_database
+from src.database.connection import get_database
 from src.transform.dwh_loader import upsert_dimension
 
 

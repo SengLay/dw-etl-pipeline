@@ -5,7 +5,7 @@ from fastapi import FastAPI
 
 from api.middleware import add_middleware
 from api.routes import data, operations, system
-from src.common.db import init_db
+from src.database.connection import init_db
 
 
 def create_app() -> FastAPI:

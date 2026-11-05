@@ -2,7 +2,7 @@ from typing import Iterator
 
 import pandas as pd
 
-from src.common.db import get_raw_database
+from src.database.connection import get_database
 from src.extract.base import BaseExtractor
 
 
@@ -14,4 +14,4 @@ class DataLakeExtractor(BaseExtractor):
         self.chunksize = chunksize
 
     def extract(self) -> Iterator[pd.DataFrame]:
-        yield get_raw_database().select(f"SELECT * FROM raw.{self.raw_table}")
+        yield get_database("raw").select(f"SELECT * FROM raw.{self.raw_table}")

@@ -5,7 +5,7 @@ from fastapi import HTTPException
 from sqlalchemy import inspect
 
 from config.settings import SCHEMAS
-from src.common.db import get_database
+from src.database.connection import get_database
 
 
 def validate_layer(layer: str) -> str:

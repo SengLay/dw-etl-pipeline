@@ -16,11 +16,11 @@ class Settings:
     # --- database ---
     db_server: str = os.getenv("DB_SERVER", "localhost")
     db_name: str = os.getenv("DB_NAME", "dwh_proj")
-    raw_db_name: str = os.getenv("RAW_DB_NAME", "lake_raw")
     db_user: str = os.getenv("DB_USER", "sa")
     db_password: str = os.getenv("DB_PASSWORD", "")
     db_trusted: bool = os.getenv("DB_TRUSTED", "no").lower() in ("yes", "true", "1")  # Windows auth
     db_driver: str = os.getenv("DB_DRIVER", "ODBC Driver 17 for SQL Server")
+    raw_db_name: str = os.getenv("RAW_DB_NAME", "lake_raw")
 
     # --- data lake / kaggle ---
     lake_path: str = os.getenv("LAKE_PATH", "./data/lake")

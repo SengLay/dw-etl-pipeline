@@ -6,7 +6,7 @@
 import argparse
 
 from config.settings import SCHEMAS
-from src.common.db import get_database
+from src.database.connection import get_database
 from src.common.logger import get_logger
 from src.datamart import build as p3
 from src.extract import run as p1

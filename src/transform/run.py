@@ -1,5 +1,5 @@
 """P2: D1 Staging -> D2 DWH (dimensions first, then facts)."""
-from src.common.db import init_db
+from src.database.connection import init_db
 from src.common.logger import get_logger
 from src.transform import dimensions, facts
 

@@ -2,7 +2,7 @@
 import pandas as pd
 
 from config.settings import DWH, STAGING
-from src.common.db import get_database
+from src.database.connection import get_database
 from src.quality.checks import DataQualityError
 from src.common.logger import get_logger
 from src.transform.dwh_loader import load_fact

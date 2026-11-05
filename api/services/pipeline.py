@@ -4,7 +4,7 @@ from typing import Any
 import pandas as pd
 
 from api.schemas import PipelineStage
-from src.common.db import get_database
+from src.database.connection import get_database
 from src.extract.registry import get_extractors
 from src.quality.checks import check_table
 
